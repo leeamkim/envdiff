@@ -2,68 +2,74 @@ package cli
 
 import (
 	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/user/envdiff/internal/diff"
 	"github.com/user/envdiff/internal/parser"
 )
 
-// Config holds parsed CLI options.
-type Config struct {
-	FileA  string
-	FileB  string
-	Strict bool
-	Output io.Writer
-}
-
-// Run parses arguments and executes the comparison.
+// Run is the entry point for the CLI.
 func Run(args []string) error {
-	cfg, err := parseArgs(args)
+	files, opts, err := parseArgs(args)
 	if err != nil {
 		return err
 	}
-	return run(cfg)
+	return run(files[0], files[1], opts)
 }
 
-func parseArgs(args []string) (*Config, error) {
-	fs := flag.NewFlagSet("envdiff", flag.ContinueOnError)
-	strict := fs.Bool("strict", false, "exit with non-zero status if differences found")
-
-	if err := fs.Parse(args); err != nil {
-		return nil, err
-	}
-
-	if fs.NArg() != 2 {
-		return nil, errors.New("usage: envdiff [--strict] <file-a> <file-b>")
-	}
-
-	return &Config{
-		FileA:  fs.Arg(0),
-		FileB:  fs.Arg(1),
-		Strict: *strict,
-		Output: os.Stdout,
-	}, nil
+type options struct {
+	strict      bool
+	onlyMissing bool
+	onlyMismatch bool
 }
 
-func run(cfg *Config) error {
-	envA, err := parser.ParseFile(cfg.FileA)
+func parseArgs(args []string) ([2]string, options, error) {
+	var files [2]string
+	var opts options
+	positional := []string{}
+	for _, a := range args {
+		switch a {
+		case "--strict":
+			opts.strict = true
+		case "--only-missing":
+			opts.onlyMissing = true
+		case "--only-mismatch":
+			opts.onlyMismatch = true
+		default:
+			positional = append(positional, a)
+		}
+	}
+	if len(positional) < 2 {
+		return files, opts, errors.New("usage: envdiff <file1> <file2> [--strict] [--only-missing] [--only-mismatch]")
+	}
+	files[0], files[1] = positional[0], positional[1]
+	return files, opts, nil
+}
+
+func run(fileA, fileB string, opts options) error {
+	envA, err := parser.ParseFile(fileA)
 	if err != nil {
-		return fmt.Errorf("reading %s: %w", cfg.FileA, err)
+		return fmt.Errorf("parsing %s: %w", fileA, err)
+	}
+	envB, err := parser.ParseFile(fileB)
+	if err != nil {
+		return fmt.Errorf("parsing %s: %w", fileB, err)
 	}
 
-	envB, err := parser.ParseFile(cfg.FileB)
-	if err != nil {
-		return fmt.Errorf("reading %s: %w", cfg.FileB, err)
-	}
+	results := diff.Compare(envA, envB)
+	results = diff.Filter(results, diff.FilterOptions{
+		OnlyMissing:   opts.onlyMissing,
+		OnlyMismatched: opts.onlyMismatch,
+	})
 
-	result := diff.Compare(envA, envB)
-	diff.PrintReport(cfg.Output, result, cfg.FileA, cfg.FileB)
+	diff.PrintReport(os.Stdout, results, fileA, fileB)
 
-	if cfg.Strict && result.HasDiff() {
-		return fmt.Errorf("differences found between %s and %s", cfg.FileA, cfg.FileB)
+	summary := diff.Summarize(results)
+	fmt.Fprintln(os.Stdout, summary.String())
+
+	if opts.strict && summary.HasDiff() {
+		return errors.New("differences found (strict mode)")
 	}
 	return nil
 }
