@@ -13,3 +13,10 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+// version information set by the build system via ldflags.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
