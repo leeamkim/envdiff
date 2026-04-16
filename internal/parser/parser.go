@@ -37,6 +37,10 @@ func ParseFile(path string) (EnvMap, error) {
 		}
 
 		key := strings.TrimSpace(parts[0])
+		if key == "" {
+			return nil, fmt.Errorf("empty key at line %d: %q", lineNum, line)
+		}
+
 		value := strings.TrimSpace(parts[1])
 
 		// Strip surrounding quotes if present
