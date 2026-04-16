@@ -7,38 +7,47 @@ import (
 )
 
 // PrintReport writes a human-readable diff report to w.
-func PrintReport(w io.Writer, r Result, leftName, rightName string) {
+func PrintReport(w io.Writer, r Result, labelA, labelB string) {
 	if !r.HasDiff() {
-		fmt.Fprintln(w, "No differences found.")
+		fmt.Fprintln(w, "✓ No differences found.")
 		return
 	}
 
-	if len(r.MissingInRight) > 0 {
-		sort.Strings(r.MissingInRight)
-		fmt.Fprintf(w, "Keys missing in %s:\n", rightName)
-		for _, k := range r.MissingInRight {
+	if len(r.MissingInB) > 0 {
+		keys := sortedKeys(r.MissingInB)
+		fmt.Fprintf(w, "\nKeys in %s but missing in %s:\n", labelA, labelB)
+		for _, k := range keys {
 			fmt.Fprintf(w, "  - %s\n", k)
 		}
 	}
 
-	if len(r.MissingInLeft) > 0 {
-		sort.Strings(r.MissingInLeft)
-		fmt.Fprintf(w, "Keys missing in %s:\n", leftName)
-		for _, k := range r.MissingInLeft {
+	if len(r.MissingInA) > 0 {
+		keys := sortedKeys(r.MissingInA)
+		fmt.Fprintf(w, "\nKeys in %s but missing in %s:\n", labelB, labelA)
+		for _, k := range keys {
 			fmt.Fprintf(w, "  - %s\n", k)
 		}
 	}
 
 	if len(r.Mismatched) > 0 {
+		fmt.Fprintf(w, "\nMismatched values:\n")
 		keys := make([]string, 0, len(r.Mismatched))
 		for k := range r.Mismatched {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
-		fmt.Fprintln(w, "Mismatched values:")
 		for _, k := range keys {
-			v := r.Mismatched[k]
-			fmt.Fprintf(w, "  ~ %s: %q (%s) vs %q (%s)\n", k, v[0], leftName, v[1], rightName)
+			pair := r.Mismatched[k]
+			fmt.Fprintf(w, "  ~ %s: %q (%s) vs %q (%s)\n", k, pair[0], labelA, pair[1], labelB)
 		}
 	}
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
