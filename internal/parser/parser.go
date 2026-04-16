@@ -42,14 +42,7 @@ func ParseFile(path string) (EnvMap, error) {
 		}
 
 		value := strings.TrimSpace(parts[1])
-
-		// Strip surrounding quotes if present
-		if len(value) >= 2 {
-			if (value[0] == '"' && value[len(value)-1] == '"') ||
-				(value[0] == '\'' && value[len(value)-1] == '\'') {
-				value = value[1 : len(value)-1]
-			}
-		}
+		value = stripQuotes(value)
 
 		env[key] = value
 	}
@@ -59,4 +52,16 @@ func ParseFile(path string) (EnvMap, error) {
 	}
 
 	return env, nil
+}
+
+// stripQuotes removes a matching pair of surrounding single or double quotes
+// from a value string, if present.
+func stripQuotes(value string) string {
+	if len(value) >= 2 {
+		if (value[0] == '"' && value[len(value)-1] == '"') ||
+			(value[0] == '\'' && value[len(value)-1] == '\'') {
+			return value[1 : len(value)-1]
+		}
+	}
+	return value
 }
