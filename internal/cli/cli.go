@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 
@@ -11,65 +12,63 @@ import (
 
 // Run is the entry point for the CLI.
 func Run(args []string) error {
-	files, opts, err := parseArgs(args)
+	opts, err := parseArgs(args)
 	if err != nil {
 		return err
 	}
-	return run(files[0], files[1], opts)
+	return run(opts)
 }
 
 type options struct {
-	strict      bool
-	onlyMissing bool
-	onlyMismatch bool
+	fileA      string
+	fileB      string
+	strict     bool
+	ignoreFile string
 }
 
-func parseArgs(args []string) ([2]string, options, error) {
-	var files [2]string
-	var opts options
-	positional := []string{}
-	for _, a := range args {
-		switch a {
-		case "--strict":
-			opts.strict = true
-		case "--only-missing":
-			opts.onlyMissing = true
-		case "--only-mismatch":
-			opts.onlyMismatch = true
-		default:
-			positional = append(positional, a)
+func parseArgs(args []string) (options, error) {
+	fs := flag.NewFlagSet("envdiff", flag.ContinueOnError)
+	strict := fs.Bool("strict", false, "exit with non-zero status if any diff found")
+	ignoreFile := fs.String("ignore", "", "path to file listing keys to ignore")
+	if err := fs.Parse(args); err != nil {
+		return options{}, err
+	}
+	if fs.NArg() < 2 {
+		return options{}, errors.New("usage: envdiff [--strict] [--ignore FILE] <fileA> <fileB>")
+	}
+	return options{
+		fileA:      fs.Arg(0),
+		fileB:      fs.Arg(1),
+		strict:     *strict,
+		ignoreFile: *ignoreFile,
+	}, nil
+}
+
+func run(opts options) error {
+	envA, err := parser.ParseFile(opts.fileA)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", opts.fileA, err)
+	}
+	envB, err := parser.ParseFile(opts.fileB)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", opts.fileB, err)
+	}
+
+	result := diff.Compare(envA, envB)
+
+	if opts.ignoreFile != "" {
+		keys, err := parser.ParseIgnoreFile(opts.ignoreFile)
+		if err != nil {
+			return fmt.Errorf("reading ignore file: %w", err)
 		}
-	}
-	if len(positional) < 2 {
-		return files, opts, errors.New("usage: envdiff <file1> <file2> [--strict] [--only-missing] [--only-mismatch]")
-	}
-	files[0], files[1] = positional[0], positional[1]
-	return files, opts, nil
-}
-
-func run(fileA, fileB string, opts options) error {
-	envA, err := parser.ParseFile(fileA)
-	if err != nil {
-		return fmt.Errorf("parsing %s: %w", fileA, err)
-	}
-	envB, err := parser.ParseFile(fileB)
-	if err != nil {
-		return fmt.Errorf("parsing %s: %w", fileB, err)
+		il := diff.NewIgnoreList(keys)
+		result = il.Apply(result)
 	}
 
-	results := diff.Compare(envA, envB)
-	results = diff.Filter(results, diff.FilterOptions{
-		OnlyMissing:   opts.onlyMissing,
-		OnlyMismatched: opts.onlyMismatch,
-	})
+	diff.PrintReport(os.Stdout, opts.fileA, opts.fileB, result)
 
-	diff.PrintReport(os.Stdout, results, fileA, fileB)
-
-	summary := diff.Summarize(results)
-	fmt.Fprintln(os.Stdout, summary.String())
-
-	if opts.strict && summary.HasDiff() {
-		return errors.New("differences found (strict mode)")
+	if opts.strict && diff.Summarize(result).HasDiff() {
+		return errors.New("differences found")
 	}
 	return nil
 }
