@@ -4,66 +4,65 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 )
 
-// Flags holds all parsed command-line flags for envdiff.
+// Flags holds all parsed CLI flags.
 type Flags struct {
-	FileA      string
-	FileB      string
-	Strict     bool
-	OnlyMissing    bool
-	OnlyMismatched bool
-	IgnoreFile string
-	Format     string
-	Output     string
-	ShowStats  bool
-	ShowSummary bool
+	FileA       string
+	FileB       string
+	Strict      bool
+	IgnoreFile  string
+	Format      string
+	OnlyMissing bool
+	OnlyMismatch bool
+	// Lint subcommand flags
+	LintFiles     []string
+	LintNoEmpty   bool
+	LintNoPlaceholder bool
+	LintUppercase bool
 }
 
-// Usage prints a formatted help message to the given writer.
+// Usage prints usage information to w.
 func Usage(w io.Writer) {
-	fmt.Fprintf(w, `envdiff — compare .env files across environments
-
-Usage:
-  envdiff [flags] <file-a> <file-b>
-
-Flags:
-  --strict            Exit with non-zero status if any diff is found
-  --only-missing      Show only missing keys
-  --only-mismatched   Show only mismatched values
-  --ignore-file       Path to file with keys to ignore
-  --format            Output format: text (default), json, csv
-  --output            Write output to file instead of stdout
-  --stats             Show diff statistics
-  --summary           Show a short summary line
-  --help              Show this help message
-
-Examples:
-  envdiff .env.development .env.production
-  envdiff --strict --format json .env .env.production
-  envdiff --ignore-file .envdiffignore .env .env.staging
-`)
+	fmt.Fprintln(w, "Usage: envdiff [options] <file-a> <file-b>")
+	fmt.Fprintln(w, "       envdiff lint [--no-empty] [--no-placeholder] [--uppercase] <files...>")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Options:")
+	fmt.Fprintln(w, "  --strict          Exit with non-zero status if any diff found")
+	fmt.Fprintln(w, "  --ignore FILE     Path to ignore file")
+	fmt.Fprintln(w, "  --format FORMAT   Output format: text (default), json, csv")
+	fmt.Fprintln(w, "  --only-missing    Show only missing keys")
+	fmt.Fprintln(w, "  --only-mismatch   Show only mismatched keys")
 }
 
-// ParseFlags parses command-line arguments into a Flags struct.
-// It returns the remaining positional arguments alongside the parsed flags.
-func ParseFlags(args []string) (*Flags, []string, error) {
+// ParseFlags parses os.Args and returns a Flags struct.
+func ParseFlags(args []string) (Flags, error) {
 	fs := flag.NewFlagSet("envdiff", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
 
-	f := &Flags{}
-
-	fs.BoolVar(&f.Strict, "strict", false, "exit non-zero if any diff found")
-	fs.BoolVar(&f.OnlyMissing, "only-missing", false, "show only missing keys")
-	fs.BoolVar(&f.OnlyMismatched, "only-mismatched", false, "show only mismatched values")
-	fs.StringVar(&f.IgnoreFile, "ignore-file", "", "path to ignore file")
+	var f Flags
+	fs.BoolVar(&f.Strict, "strict", false, "exit non-zero if diff found")
+	fs.StringVar(&f.IgnoreFile, "ignore", "", "path to ignore file")
 	fs.StringVar(&f.Format, "format", "text", "output format: text, json, csv")
-	fs.StringVar(&f.Output, "output", "", "write output to file")
-	fs.BoolVar(&f.ShowStats, "stats", false, "show diff statistics")
-	fs.BoolVar(&f.ShowSummary, "summary", false, "show summary line")
+	fs.BoolVar(&f.OnlyMissing, "only-missing", false, "show only missing keys")
+	fs.BoolVar(&f.OnlyMismatch, "only-mismatch", false, "show only mismatched keys")
+	fs.BoolVar(&f.LintNoEmpty, "no-empty", false, "lint: flag empty values")
+	fs.BoolVar(&f.LintNoPlaceholder, "no-placeholder", false, "lint: flag placeholder values")
+	fs.BoolVar(&f.LintUppercase, "uppercase", false, "lint: flag lowercase keys")
 
 	if err := fs.Parse(args); err != nil {
-		return nil, nil, err
+		return f, err
 	}
 
-	return f, fs.Args(), nil
+	remaining := fs.Args()
+	if len(remaining) >= 2 {
+		f.FileA = remaining[0]
+		f.FileB = remaining[1]
+	} else if len(remaining) == 1 && remaining[0] == "lint" {
+		// handled upstream
+	} else {
+		f.LintFiles = remaining
+	}
+	return f, nil
 }
