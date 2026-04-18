@@ -51,3 +51,13 @@ func TestMerge_MultipleConflictsSorted(t *testing.T) {
 		t.Errorf("conflicts not sorted: %v", r.Conflicts)
 	}
 }
+
+func TestMerge_EmptyMaps(t *testing.T) {
+	r := Merge(map[string]string{}, map[string]string{}, false)
+	if len(r.Conflicts) != 0 {
+		t.Errorf("expected no conflicts, got %v", r.Conflicts)
+	}
+	if len(r.Merged) != 0 {
+		t.Errorf("expected empty merged map, got %v", r.Merged)
+	}
+}
