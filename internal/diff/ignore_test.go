@@ -59,3 +59,16 @@ func TestIgnoreList_Apply_Empty(t *testing.T) {
 		t.Errorf("expected 1 entry, got %d", len(out.MissingInA))
 	}
 }
+
+func TestIgnoreList_Apply_AllIgnored(t *testing.T) {
+	il := NewIgnoreList([]string{"SECRET", "TOKEN", "PORT"})
+	r := Result{
+		MissingInA: []string{"SECRET"},
+		MissingInB: []string{"TOKEN"},
+		Mismatched: map[string][2]string{"PORT": {"8080", "9090"}},
+	}
+	out := il.Apply(r)
+	if len(out.MissingInA) != 0 || len(out.MissingInB) != 0 || len(out.Mismatched) != 0 {
+		t.Errorf("expected all entries to be ignored, got %+v", out)
+	}
+}
