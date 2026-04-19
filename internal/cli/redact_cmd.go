@@ -11,6 +11,10 @@ import (
 )
 
 // RunRedact loads an env file and prints a redacted version as JSON.
+// Usage: envdiff redact <file> [--patterns=A,B,...]
+//
+// By default, common sensitive key patterns (e.g. SECRET, PASSWORD, TOKEN)
+// are redacted. Use --patterns to override with a comma-separated list.
 func RunRedact(args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("usage: envdiff redact <file> [--patterns=A,B,...]")
@@ -31,6 +35,10 @@ func RunRedact(args []string) error {
 	env, err := parser.ParseFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse %s: %w", filePath, err)
+	}
+
+	if len(env) == 0 {
+		fmt.Fprintf(os.Stderr, "warning: %s contains no entries\n", filePath)
 	}
 
 	opts := diff.RedactOptions{Patterns: patterns}
