@@ -83,4 +83,13 @@ func TestDiffSnapshots_NoChanges(t *testing.T) {
 	}
 }
 
+func TestDiffSnapshots_Empty(t *testing.T) {
+	a := NewSnapshot("a", map[string]string{})
+	b := NewSnapshot("b", map[string]string{})
+	d := DiffSnapshots(a, b)
+	if d.HasChanges() {
+		t.Error("expected no changes for two empty snapshots")
+	}
+}
+
 var _ = os.WriteFile // suppress unused import
