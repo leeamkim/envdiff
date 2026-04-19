@@ -28,10 +28,10 @@ func Compute(r Result) Stats {
 	}
 
 	s := Stats{
-		TotalKeys:  len(allKeys),
-		MissingInA: len(r.MissingInA),
-		MissingInB: len(r.MissingInB),
-		Mismatched: len(r.Mismatched),
+		TotalKeys:    len(allKeys),
+		MissingInA:   len(r.MissingInA),
+		MissingInB:   len(r.MissingInB),
+		Mismatched:   len(r.Mismatched),
 		MatchingKeys: len(r.Matching),
 	}
 	return s
@@ -48,4 +48,10 @@ func (s Stats) String() string {
 // HasDiff returns true when any discrepancy exists.
 func (s Stats) HasDiff() bool {
 	return s.MissingInA > 0 || s.MissingInB > 0 || s.Mismatched > 0
+}
+
+// DiffCount returns the total number of discrepant keys across all diff
+// categories (missing in A, missing in B, and mismatched values).
+func (s Stats) DiffCount() int {
+	return s.MissingInA + s.MissingInB + s.Mismatched
 }
