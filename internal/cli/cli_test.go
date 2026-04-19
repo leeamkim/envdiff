@@ -69,6 +69,25 @@ func TestRun_OutputWritten(t *testing.T) {
 	}
 }
 
+func TestRun_NoDiff_NoOutput(t *testing.T) {
+	a := writeTempEnv(t, "KEY=value\n")
+	b := writeTempEnv(t, "KEY=value\n")
+
+	var buf bytes.Buffer
+	cfg := &Config{
+		FileA:  a,
+		FileB:  b,
+		Strict: false,
+		Output: &buf,
+	}
+	if err := run(cfg); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("expected no output for identical files, got: %s", buf.String())
+	}
+}
+
 func TestParseArgs_Strict(t *testing.T) {
 	cfg, err := parseArgs([]string{"--strict", "a.env", "b.env"})
 	if err != nil {
