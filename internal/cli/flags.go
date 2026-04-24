@@ -29,7 +29,7 @@ Flags:`)
 	flag.PrintDefaults()
 }
 
-// ParseFlags parses top-level CLI flags and returns remaining args.
+// Flags holds the parsed top-level CLI flags.
 type Flags struct {
 	Strict   bool
 	Format   string
@@ -37,6 +37,8 @@ type Flags struct {
 	Interval time.Duration
 }
 
+// ParseFlags parses top-level CLI flags from args and returns the
+// populated Flags struct along with any remaining positional arguments.
 func ParseFlags(args []string) (Flags, []string, error) {
 	fs := flag.NewFlagSet("envdiff", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
@@ -51,4 +53,15 @@ func ParseFlags(args []string) (Flags, []string, error) {
 		return Flags{}, nil, err
 	}
 	return f, fs.Args(), nil
+}
+
+// ValidateFormat returns an error if the format value is not one of the
+// supported output formats.
+func (f Flags) ValidateFormat() error {
+	switch f.Format {
+	case "text", "json", "csv":
+		return nil
+	default:
+		return fmt.Errorf("unsupported format %q: must be one of text, json, csv", f.Format)
+	}
 }
