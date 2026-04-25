@@ -1,6 +1,9 @@
 package diff
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // HealthStatus represents the overall health of an env file.
 type HealthStatus struct {
@@ -18,6 +21,8 @@ func (h HealthStatus) String() string {
 }
 
 // ComputeHealth evaluates the quality of an env map and returns a HealthStatus.
+// It penalizes empty values (-10 each), placeholder values (-8 each),
+// and lowercase keys (-5 each) to produce a score from 0 to 100.
 func ComputeHealth(env map[string]string) HealthStatus {
 	total := len(env)
 	if total == 0 {
@@ -29,7 +34,7 @@ func ComputeHealth(env map[string]string) HealthStatus {
 		if v == "" {
 			empty++
 		}
-		if v == "CHANGEME" || v == "TODO" || v == "PLACEHOLDER" {
+		if isPlaceholder(v) {
 			placeholders++
 		}
 		if k != strings.ToUpper(k) {
@@ -56,6 +61,15 @@ func ComputeHealth(env map[string]string) HealthStatus {
 		Score:         score,
 		Grade:         grade,
 	}
+}
+
+// isPlaceholder reports whether a value looks like an unfilled placeholder.
+func isPlaceholder(v string) bool {
+	switch strings.ToUpper(v) {
+	case "CHANGEME", "TODO", "PLACEHOLDER", "FIXME", "YOUR_VALUE_HERE":
+		return true
+	}
+	return false
 }
 
 func scoreGrade(score int) string {
