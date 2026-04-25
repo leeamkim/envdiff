@@ -59,3 +59,11 @@ func TestLint_MultipleRules(t *testing.T) {
 		t.Errorf("expected at least 2 issues, got %d", len(result.Issues))
 	}
 }
+
+func TestLint_NoRules(t *testing.T) {
+	env := map[string]string{"foo": "", "BAR": "CHANGEME"}
+	result := Lint("x.env", env, []LintRule{})
+	if result.HasIssues() {
+		t.Errorf("expected no issues when no rules provided, got %d", len(result.Issues))
+	}
+}
