@@ -52,6 +52,11 @@ func ParseFlags(args []string) (Flags, []string, error) {
 	if err := fs.Parse(args); err != nil {
 		return Flags{}, nil, err
 	}
+
+	if err := f.ValidateFormat(); err != nil {
+		return Flags{}, nil, err
+	}
+
 	return f, fs.Args(), nil
 }
 
